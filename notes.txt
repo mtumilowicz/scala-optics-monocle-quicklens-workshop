@@ -1,0 +1,449 @@
+* references
+    * https://github.com/optics-dev/Monocle
+    * https://www.optics.dev/Monocle/
+    * https://www.baeldung.com/scala/monocle-optics
+    * https://github.com/optics-dev/Monocle/tree/master/example/src/test/scala-2/monocle/function
+    * [Monocle 3: A Peek into the Future by Julien Truffaut: Scala in the City Conference](https://www.youtube.com/watch?v=oAkiny6BzL0)
+    * [Lenses, Prisms and Optics in Scala | Rock the JVM](https://www.youtube.com/watch?v=a09aBGccUTE)
+    * https://blog.rockthejvm.com/lens/
+    * [Scale By The Bay 2020: Julien Truffaut, Monocle 3: a peek into the future](https://www.youtube.com/watch?v=rT3tNV0xfbE)
+    * https://medium.com/javascript-scene/lenses-b85976cb0534
+    * [Mastering Optics in Scala with Monocle. Shimi Bandiel. ScalaUA2017](https://www.youtube.com/watch?v=fYMgdFrRtSU)
+    * [Optics with Monocle - Modeling the Part and the Whole](https://www.youtube.com/watch?v=NvCcNM2vp3k)
+    * [Data Juggling - Part 2 - Homegrown #Lenses (#Monocle - Part 1)](https://www.youtube.com/watch?v=rFixov5KOps)
+    * [Data Juggling - Part 3 - Optics Explained (#Monocle - Part 2)](https://www.youtube.com/watch?v=18ss7LpAKWE)
+    * [Data Juggling - Part 4 - #Quicklens (#Monocle - Part 3)](https://www.youtube.com/watch?v=1qHJ0H-2iOw)
+    * https://github.com/softwaremill/quicklens
+    * https://www.warski.org/blog/2015/02/quicklens-modify-deeply-nested-case-class-fields/
+    * https://github.com/DevInsideYou/monocle-vs-quicklens
+    * https://kubuszok.com/2018/adt-through-the-looking-glass/
+    * https://www.scala-exercises.org/monocle
+    * https://medium.com/zyseme-technology/functional-references-lens-and-other-optics-in-scala-e5f7e2fdafe
+    * https://circe.github.io/circe/optics.html
+    * https://scalac.io/blog/scala-optics-lenses-with-monocle/
+    * https://dzone.com/articles/focus-on-your-data-structures-with-scala-lenses
+    * https://github.com/falvarezb/blog-bytecode/blob/postLenses/src/test/scala/fjab/LensesTest.scala
+
+* lenses can be considered the functional representations of getters and setters
+    ```
+    case class Lens[A, B](get: A => B, set: (B, A) => A)
+
+    val articleTitleLens = Lens[Article, String](get = _.title, set = (t, a) => a.copy(title = t))
+    ```
+    * It would be nice if we could have something like OOP’s setters for immutable data structures.
+        * Well, .copy is like that, but it doesn’t compose
+    * laws
+        * getting and setting it back changes noting
+        * setting and getting should return what I set
+        * setting twice will get the last set (no history)
+    * can be composed
+    * sum types?
+        * e.g. option, either
+        * example: Lens[Option[T], T]
+            * how to define getter?
+                * impossible
+                * solution: partial lens (prism/optional in monocle)
+                    * case class PartialLens[A, B](get: A => Option[B], set: (B, A) => Option[A])
+                    * PartialLens - getter/setter for optional fields
+    * multiple updates
+        * lens construct focuses on a single field
+        * what if we have multiple fields?
+            * setting all the values in certain fields of a json
+            * impossible
+            * solution: val Laarhoven representation
+                * it is possible to unify all the lens functions
+                    ```
+                    get: S => A
+                    set: A => S => S
+                    modify: (A => A) => (S => S)
+                    modifyMaybe: (A => Option[A]) => (S => Option[S])
+                    modifyList: (A => List[A]) => (S => List[S])
+                    ```
+                    * answer
+                        ```
+                        lens: Functor[F] => (A => F[A]) => (S => F[S])
+                        type Id[A] = A
+                        lens: (A => Id[A]) => (S => Id[S])
+
+                        set(b) = modify(_ => b)
+                        type Const[X][T] = X
+                        F = Const[A]
+                        lens: (A => Const[A][A]) => (S => Const[A][S])
+                        lens: (A => A) => (S => A)
+                        get = lens[Const[A]](a => a)
+
+                        trait Functor[F[_]]
+                            def map[A, B](f: A => B)(fa: F[A]): F[B]
+
+                        type Const[X][T] = X
+                        Functor[Const[X]]
+                            def map[A, B](f: A => B)(fa: Const[X][A]): Const[X][B]
+                        ```
+                        answer
+                        ```
+                        def get: S => A
+                        def set: A => S => S
+                        def lens[F[_]: Functor](f: A => F[A])(s: S): F[S] =
+                            f(get(s)).map(a => set(a)(s))
+                        ```
+                * generic representation the can support all features in the same type
+                    ```
+                    [F: Functor[_], S, T, A, B] // F ~ for example: Option, Collection
+                    modifyF: (f:A => F[B]): S => F[T]
+                    ```
+    * As the School of Haskell points out:
+      A lens is a first-class reference to a subpart of some data type.
+    * In the Profunctor Optics Modular Data Accessors paper is indeed introduced in this way:
+      Any data accessor for a component of a data structure is ‘function-like’, in the sense that reading ‘consumes’ the component from the data structure and writing ‘produces’ an updated component to put back into the data structure. The type structure of such function-like things — henceforth transformers — is technically known as a profunctor.
+    * Lens Laws
+        * Identity — If you get and then set back with the same value, the object remains identical:
+            ```
+            def getSet[S, A](lens: Lens[S, A], s: S): Boolean =
+              lens.set(s, lens.get(s)) == s
+            ```
+        * Retention — If you set with a value and then perform a get, you get the same value back:
+            ```
+            def setGet[S, A](lens: Lens[S, A], s: S, a: A): Boolean =
+              lens.get(lens.set(s, a)) == a
+            ```
+        * Double set — If you set twice in succession and then perform a get, you get back the last set value:
+            ```
+            def putPut[S, A](lens: Lens[S, A], s: S, a: A, b: A): Boolean =
+              lens.get(lens.set(lens.set(s, a), b)) == b
+            ```
+        * You may think: “So what? We can get and set case class values in some new way – what’s the point?”. The true benefit of Lenses lies in their composability.
+    * ISO[S, A]
+        * Iso is an optic which converts elements of type S into elements of type A without loss.
+        * isomorphism between two types
+        * bijection
+        * example
+            ```
+            case class Person(name: String, age: Int)
+            ```
+            Person is equivalent to a tuple (String, Int)
+            tuple (String, Int) is equivalent to Person
+        * common use of Iso is between collection. List and Vector
+        * Iso are also convenient to lift methods from one type to another
+            * example: a String can be seen as a List[Char]
+        * You can think of Iso as something that is simultaneously Lens and Prism. That means that navigating from S and A is always successful (as in Lens) and navigating from A to S does not need any additional information besides of A value (as in Prism) – in other words transformation from S to A is lossless
+        * When is Iso useful? Basically anytime when representing essentially the same data in different ways.
+        * One of classic examples is working with physical units
+            ```
+            case class Meter(whole: Int, fraction: Int)
+            case class Centimeter(whole: Int)
+
+
+            val centimeterToMeterIso = Iso[Centimeter, Meter] { cm =>
+              Meter(cm.whole / 100, cm.whole % 100)
+            }{ m =>
+              Centimeter(m.whole * 100 + m.fraction)
+            }
+
+            centimeterToMeterIso.modify(m => m.copy(m.whole + 3))(Centimeter(155))
+            ```
+    * Prism[S, A]
+        * sum type
+        * not 1-1 correspondence
+            * String - Int (not all strings are transformable to Int), all Int transformable to String
+            * String <- Int
+            * String -> Option[Int]
+        * laws
+            * if there is an answer, going back must give the source
+            * if we go back, there must be an answer, which is the source
+            * example
+                ```
+                def stringToInt: Prism[String, Int] = Prism(
+                    getOption = s => Try(s.toInt).toOption
+                    reverseGet = _.toString
+                )
+                ```
+                why it breaks laws? try "03"
+                    * In that case it’s pretty easy to see what’s wrong – stringToIntPrism does not preserve some values during round trip
+                    stringToIntPrism.modify(identity)("005")
+                    // res: String = 5
+        * double binding
+            * Prism[String, Celsius]
+            * Prism[String, Fahrenheit]
+            * Iso[Celsius, Fahrenheit]
+        * partial function
+        * def isoToPrism[S,A](iso: Iso[S,A]): Prism[S,A] =
+            Prism(
+                getOption = s => Some(iso.get(s))
+                reverseGet = iso.reverseGet
+            )
+        * for coproduct
+        * used to select part of a Sum type (also known as Coproduct), e.g. sealed trait or Enum
+        * vs lens
+            * you can always come back
+            * sometimes fails to get target (Option) but you can always come back
+        * laws
+            * a Prism must verify that getOption and reverseGet allow a full round trip if the Prism matches i.e. if getOption returns a Some
+    * Optional[S, A]
+        * You may think of Optional as something more general than both Prism and Lens
+            * Similarly to Prism the element A we are trying to focus may not exist. At the same time focusing is also lossy – after focus we don’t have enough information to go back to S without additional argument
+        * There is a generalization of Prism in case the object of type A may not exist, it’s called Optional.
+        * Unlike Prism when using set on Optional we lose information: we don’t have enough information to go back to S without additional argument.
+        * focuses on a field that may not exist
+        * has worst part of lens and prism
+            * fail to retrieve and fail to get back
+        * is an Optic used to zoom inside a Product, e.g. case class, Tuple, HList or even Map
+        * vs lens
+            * Unlike the Lens, the element that the Optional focuses on may not exist
+        * laws
+            * getOptionSet states that if you getOrModify a value A from S and then set it back in, the result is an object identical to the original one.
+            * setGetOption states that if you set a value, you always getOption the same value back.
+        * example
+            ```
+            sealed trait Error
+
+            case class ErrorA(message: String, details: DetailedErrorA) extends Error
+            case object ErrorB extends Error
+
+            case class DetailedErrorA(detailedMessage: String)
+            ```
+            * Let’s consider Optional[Error, String], which would allow us to “zoom into” detailedMessage. It cannot be Lens[Error, String] as ErrorB does not contain detailMessage.
+        * It’s quite rare to see Optional implemented directly like above. Instead, usually you implement separate Prism and Lens and then compose them together
+    * Traversal[S, A]
+        * like optional that can focus on 0 to n fields
+        * generalisation of an Optional to several targets
+        * most common example of a Traversal would be to focus into all elements inside of a container (e.g. List, Vector, Option)
+        * example: dog list, name to uppercase
+        * laws
+            * fusion law
+    * At[S, I, A]
+        * an "index" I, provides a Lens[S, A]
+        * built-in instances for map and set
+        * Lens
+    * Index[S, I, A]
+        * like At
+        * works on an optional index
+        * built-in: list, map, string etc
+        * Prism
+        * can't delete the value under the key
+    * Lens is not polymorphic
+        * first.set("Hello")((1,2)) == ("Hello",2)
+        * example
+            ```
+            trait PLens[S, T, A, B]
+                def get(s: S): A
+                def set(b: B)(s: S): T
+            ```
+        * example
+            ```
+            import monocle.macros.syntax.lens._
+
+            john.lens(_.name).set("Mike").lens(_.age).modify(_ + 1)
+            ```
+        * for product
+        * is an optic used to zoom inside a Product, e.g. case class, Tuple, HList or even Map
+        * In particular, a Lens must respect the getSet law which states that if you get a value A from S and set it back in, the result is an object identical to the original one
+        * vs iso
+            * when you are at field it is not enough to back to source
+        * vs prism
+            * always get something but you cannot get back
+    * hierarchy
+        ![alt text](img/optics_short_hierarchy.png)
+        ![alt text](img/optics_full_hierarchy.png)
+        ![alt text](img/composing.png)
+        * This diagram is meant to be read as UML class hierarchy diagram, so e.g. arrow going from Lens to Optional means that Lens is a special case of Optional.
+        * And what does it mean that both Lens and Prism can be treated as Optional? Lens is an Optional for which getOption always succeeds
+        * Prism is an Optional for which we ignores S (“the whole part”) – A (“the specific part”) holds all information to produce new S.
+* mutable
+    ```
+    case class User(var name: String, var address: Address, paymentMethod: PaymentMethod)
+    case class Address(var streetNumber: Int, var postCode: String)
+
+    val michal = User("michal", Address(12, "E16 4SR"))
+
+    michal.address.streetNumber = 16
+    ```
+* immutable
+    ```
+    michal.copy(address = michal.address.copy(streetNumber = 16)
+
+    // how do we modify an enum?
+    def updateExpiry(user: User, newExpiry: YearMonth): User =
+        user.copy(paymentMethod =
+            user.paymentMethod match {
+                case card: DebitCard => card.copy(expirationDate = newExpiry)
+                case paypal: PayPal => paypal
+            }
+    ```
+* change to map
+    ```
+    case class User(var name: String, var address: Address, paymentMethods: Map[String, PaymentMethod])
+
+    val michal = User(
+        "michal",
+        Address(12, "E16 4SR"),
+        Map(
+            "Personal" -> PayPal("mtu@gmail.com"),
+            "Business" -> DebitCard("", YearMonth.of(2022, 7), 995)
+        )
+    )
+
+    def updateExpiry(user: User, paymentName: String, newExpiry: YearMonth): User =
+        user.copy(paymentMethod =
+            user.paymentMethods.get(paymentName) match {
+                case None | Some(_: PayPal) => user.paymentMethods
+                case Some(card: DebitCard) =>
+                    val updatedCard = card.copy(expirationDate = newExpiry)
+                    user.paymentMethods.updated(paymentName, updatedCard)
+            }
+    ```
+* example
+    ```
+    sealed trait PaymentMethod
+    case class PayPal(emai: String) extends PaymentMethod
+    case class DebitCard(
+        cardNumber: String,
+        expirationDate: YearMonth,
+        securityCode: Int
+    ) extends PaymentMethod
+    ```
+* optic
+    ```
+    trait Optic[From, To] {
+        def get(from: From): To
+        def replace(from: From, newTo: To): From
+        def modify(from: From, update: To => To): From
+        def andThen[Next](other: Optic[To, Next]): Optic[From, Next] // composition
+    }
+
+    val name: Optic[User, String]
+    name.get(user) // Michal
+    name.replace(user, "Bob") // User("Bob", Address...
+    name.modify(user, _.toUpperCase)
+    ```
+
+    * implementations: lens, optional, traversal, prism, iso
+    * compose
+        * From - optic1 -> To - optic2 -> Next
+        * From - optic1 andThen optic2 -> Next
+        * example
+            ```
+            def updateExpiry(user: User, paymentName: String, newExpiry: YearMonth): User =
+                paymentMethod
+                    .andThen(index("Personal"))
+                    .andThen(debitCard)
+                    .andThen(expirationDate)
+                    .replace(user, newExpiry)
+            ```
+            ```
+            def updateExpiry(user: User, paymentName: String, newExpiry: YearMonth): User =
+                user.focus(_.paymentMethods
+                    .index(PaymentName)
+                    .as[DebitCard]
+                    .expirationDate).replace(newExpiry)
+            ```
+* laws
+    ```
+    val nameOptic: Optic[User, String] = ...
+    val updatedUser = newOptic.replace(user, newName)
+    nameOptic.get(updatedUser) shouldEqual newName
+    ```
+    ```
+    val nameOptic: Optic[User, String] = ...
+
+    val step1 = nameOptic.modify(user, update1)
+    val step2 = nameOptic.modify(step1, update2)
+
+    val both = nameOptic.modify(user, update1 andThen update2)
+
+    step2 shouldEqual both
+    ```
+    * law breaking
+        ```
+        michal.focus(_.paymentMethods
+            .*
+            .as[DebitCard]
+            .filter(_.expirationDate.isAfter(YearMonth.of(2020, 5))) // breaks the contract
+            .expirationDate
+            ).get
+
+        val optic = Focus[User](_.paymentMethods
+            .*
+            .as[DebitCard]
+            .filter(_.expirationDate.isAfter(YearMonth.of(2020, 5))) // breaks the contract
+            .expirationDate
+
+        val updated1 = optic.modify(michal, _.minusYears(2))
+        val updated2 = optic.modify(update1, _.plusMonths(3)) // not works
+        val updated3 = optic.modify(michal, _.minusYears(2).plusMonths(3))
+        ```
+* example
+    ```
+    michal.focus(_.filter(_.address.country == "UK")
+        .paymentMethods
+        .*
+        .as[DebitCard]
+        .expirationDate
+        ).get
+    ```
+* macros
+    ```
+    Focus[User](_.address.streetNumber) // Lens[User, Int]
+    Focus[User](_.paymentMethods.index("Personal").expirationDate) // Optional[User, YearMonth]
+    Focus[User](_.paymentMethods.*.cardNumber) // Traversal[User, String]
+
+
+    ```
+
+* use cases
+    * They can reduce boilerplate considerably, especially if you are working with deeply nested JSON.
+        ```
+        import io.circe._, io.circe.parser._
+
+        val json: Json = parse("""
+        {
+          "order": {
+            "customer": {
+              "name": "Custy McCustomer",
+              "contactDetails": {
+                "address": "1 Fake Street, London, England",
+                "phone": "0123-456-789"
+              }
+            },
+            "items": [{
+              "id": 123,
+              "description": "banana",
+              "quantity": 1
+            }, {
+              "id": 456,
+              "description": "apple",
+              "quantity": 2
+            }],
+            "total": 123.45
+          }
+        }
+        """).getOrElse(Json.Null)
+
+
+        import io.circe.optics.JsonPath._
+
+        val _phoneNum = root.order.customer.contactDetails.phone.string
+        // _phoneNum: monocle.package.Optional[Json, String] = monocle.POptional$$anon$1@367b3ec4
+
+        val phoneNum: Option[String] = _phoneNum.getOption(json)
+        ```
+        * that this way you are able to e.g. migrate one JSON format into the other without having to decode into the ADT. So you could receive events/requests in the older format, check version, run all migrations from received version to the current one, and keep case classes and case objects only for the current schema
+* Polymorphic Lenses
+    * While toying around with Monocle you will quickly come across P-prefixed types like PPrism, POptional and PLens
+    * In all those cases P stands for polymorphic
+    * When Optic is polymorphic additional two types come into play for “reverse” operation: B for an argument and T for a result of that operation
+    * example
+        ```
+trait PLens[S, T, A, B] {
+	def get(s: S): A
+	def set(b: B)(s: S): T
+}
+        ```
+    * Traversal is more generic than Optional, so it composes with everything that Optional composes. This might help us understand why it makes sense for all optics to have 4 type parameters (for S => T and A =>B mappings) - this way we can always compose them. When used standalone, such mappings aren’t obviously useful when it comes to Lens, Prism and Optional - we can always do optics’ modify and result in mapping in 2 steps, but Traversal shows when it becomes much clearer to do it in one step.
+* https://www.optics.dev/Monocle/docs/focus
+* workshop
+    * create by hand then GenLens then focus
+    * GenLens[Nested](_.address.street.name) = GenLens[Nested](_.address) composeLens GenLens[Address](_.street) composeLens GenLens[...]
+    * example
+        * https://github.com/falvarezb/blog-bytecode/blob/postLenses/src/test/scala/fjab/LensesTest.scala
+    * everything implemented
+        * https://kubuszok.com/2018/adt-through-the-looking-glass/
