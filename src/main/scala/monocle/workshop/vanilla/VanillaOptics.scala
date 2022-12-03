@@ -1,8 +1,9 @@
-package monocle
+package monocle.workshop.vanilla
 
+import monocle.lib
 import monocle.user._
 
-object Xyz extends App {
+object VanillaOptics {
 
   val setStreetNo = lib.Lens[Address, Int](_.streetNumber, f => ad => ad.copy(streetNumber = f(ad.streetNumber)))
   val setAddress = lib.Lens[User, Address](_.address, f => u => u.copy(address = f(u.address)))

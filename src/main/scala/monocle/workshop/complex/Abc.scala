@@ -1,13 +1,7 @@
-package monocle
+package monocle.workshop.complex
 
+import monocle.Focus
 import monocle.Monocle.toAppliedFocusOps
-
-import scala.collection.SortedMap
-import monocle.syntax.all
-import monocle.function.all
-import monocle.std.map._
-import monocle.syntax._
-import monocle.Optional
 
 case class Lecturer(firstName: String, lastName: String, salary: Int)
 case class Department(budget: Int, lecturers: List[Lecturer])
