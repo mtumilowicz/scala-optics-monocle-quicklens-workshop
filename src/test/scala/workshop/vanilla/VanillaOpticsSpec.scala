@@ -1,6 +1,5 @@
 package workshop.vanilla
 
-import shared.user._
 import shared.user.{Address, PaymentMethod, User}
 import zio.Scope
 import zio.test.{Spec, TestEnvironment, ZIOSpecDefault, assertTrue}

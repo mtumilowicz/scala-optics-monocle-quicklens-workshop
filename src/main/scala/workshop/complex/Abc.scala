@@ -2,10 +2,7 @@ package workshop.complex
 
 import monocle.Focus
 import monocle.Monocle.toAppliedFocusOps
-
-case class Lecturer(firstName: String, lastName: String, salary: Int)
-case class Department(budget: Int, lecturers: List[Lecturer])
-case class University(name: String, departments: Map[String, Department])
+import shared.university._
 
 object Abc extends App {
 
