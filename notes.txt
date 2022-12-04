@@ -23,6 +23,7 @@
     * https://scalac.io/blog/scala-optics-lenses-with-monocle/
     * https://dzone.com/articles/focus-on-your-data-structures-with-scala-lenses
     * https://github.com/falvarezb/blog-bytecode/blob/postLenses/src/test/scala/fjab/LensesTest.scala
+    * https://circe.github.io/circe/optics.html
 
 * lenses can be considered the functional representations of getters and setters
     ```
