@@ -1,4 +1,4 @@
-package monocle.workshop.complex
+package workshop.complex
 
 import monocle.Focus
 import monocle.Monocle.toAppliedFocusOps

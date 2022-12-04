@@ -1,7 +1,7 @@
-package monocle.workshop.optics
+package workshop.optics
 
 import monocle.macros.GenLens
-import monocle.user.{Address, PaymentMethod, User}
+import shared.user.{Address, User}
 
 object Optics extends App {
 

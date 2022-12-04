@@ -1,4 +1,4 @@
-package monocle.lib
+package shared.lib
 
 trait Setter[S, A] { self =>
   def modify(f: A => A): S => S

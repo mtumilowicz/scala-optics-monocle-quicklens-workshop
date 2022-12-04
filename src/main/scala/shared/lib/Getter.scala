@@ -1,4 +1,4 @@
-package monocle.lib
+package shared.lib
 
 trait Getter[S, A] { self =>
   def get(s: S): A

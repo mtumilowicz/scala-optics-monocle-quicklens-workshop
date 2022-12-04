@@ -1,4 +1,4 @@
-package monocle.lib
+package shared.lib
 
 trait Lens[S, A] extends Getter[S, A] with Setter[S, A] { self =>
   def combine[B](lens: Lens[A, B]): Lens[S, B] =

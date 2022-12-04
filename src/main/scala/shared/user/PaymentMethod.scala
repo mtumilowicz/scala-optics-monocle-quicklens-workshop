@@ -1,4 +1,4 @@
-package monocle.user
+package shared.user
 
 import java.time.YearMonth
 

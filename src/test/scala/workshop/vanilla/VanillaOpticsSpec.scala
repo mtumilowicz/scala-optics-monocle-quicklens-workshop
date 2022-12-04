@@ -1,9 +1,9 @@
 package workshop.vanilla
 
-import monocle.user._
-import monocle.workshop.vanilla.VanillaOptics
+import shared.user._
+import shared.user.{Address, PaymentMethod, User}
 import zio.Scope
-import zio.test.{Spec, TestEnvironment, ZIOSpecDefault, assert, assertTrue}
+import zio.test.{Spec, TestEnvironment, ZIOSpecDefault, assertTrue}
 
 object VanillaOpticsSpec extends ZIOSpecDefault {
 

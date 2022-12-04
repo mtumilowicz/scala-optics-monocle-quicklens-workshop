@@ -1,9 +1,7 @@
 package workshop.optics
 
-import monocle.Monocle.toAppliedFocusOps
-import monocle.user._
-import monocle.workshop.optics.Optics
-import monocle.workshop.vanilla.VanillaOptics
+import monocle.syntax.all._
+import shared.user.{Address, PaymentMethod, User}
 import zio.Scope
 import zio.test.{Spec, TestEnvironment, ZIOSpecDefault, assertTrue}
 
