@@ -81,11 +81,28 @@ object OpticsSpec extends ZIOSpecDefault {
       },
       test("quicklens: replace email in PayPal payment method") {
         val newEmail = "newemail@gmail.com"
-        val modified = modify(user)(_.paymentMethod.when[PayPal].email).setTo(newEmail)
+        val modified = user.modify(_.paymentMethod.when[PayPal].email).setTo(newEmail)
         assertTrue(modified.paymentMethod.asInstanceOf[PayPal].email == newEmail)
       },
-      test("increase fee for all flexible rooms") {
-        assertTrue(true)
+      test("quicklens: set fee to 1 for all flexible rooms") {
+        val newFee = 1
+        val modified = hotel.modify(_.rooms.each.roomTariff.when[Flexible].fee).setTo(newFee)
+        assertTrue(modified.rooms.head.roomTariff == hotel.rooms.head.roomTariff)
+        assertTrue(modified.rooms(1).roomTariff == Flexible(newFee))
+        assertTrue(modified.rooms(2).roomTariff == Flexible(newFee))
+      },
+      test("monocle: set fee to 1 for all flexible rooms") {
+        val newFee = 1
+
+        val updatedHotel = GenLens[Hotel](_.rooms)
+          .andThen(Traversal.fromTraverse[List, Room])
+          .andThen(GenLens[Room](_.roomTariff))
+          .andThen(Prism.partial[RoomTariff, BigDecimal] { case Flexible(x) => x }(Flexible))
+          .replace(newFee)(hotel)
+
+        assertTrue(updatedHotel.rooms.head.roomTariff == hotel.rooms.head.roomTariff)
+        assertTrue(updatedHotel.rooms(1).roomTariff == Flexible(newFee))
+        assertTrue(updatedHotel.rooms(2).roomTariff == Flexible(newFee))
       }
     )
 }
