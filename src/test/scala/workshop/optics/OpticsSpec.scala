@@ -9,6 +9,7 @@ import shared.user.PaymentMethod.PayPal
 import shared.user.{Address, PaymentMethod, User}
 import zio.Scope
 import zio.test.{Spec, TestEnvironment, ZIOSpecDefault, assertTrue}
+import com.softwaremill.quicklens._
 
 object OpticsSpec extends ZIOSpecDefault {
 
@@ -71,13 +72,17 @@ object OpticsSpec extends ZIOSpecDefault {
         val headLecturer = modified.departments("History").lecturers.head
         assertTrue(headLecturer == expectedLecturer)
       },
-      test("replace email in PayPal payment method") {
+      test("monocle: replace email in PayPal payment method") {
         val newEmail = "newemail@gmail.com"
-        val setPaymentMethod = GenLens[User](_.paymentMethod)
-        val setPayPalEmail = Prism.partial[PaymentMethod, String]{case PayPal(x) => x}(PayPal)
-        val updatePayPalEmail = setPaymentMethod andThen setPayPalEmail
-        val result: User = updatePayPalEmail.replace(newEmail)(user)
-        assertTrue(result.paymentMethod.focus().as[PayPal].getOption.get.email == newEmail)
+        val modified = GenLens[User](_.paymentMethod)
+          .andThen(Prism.partial[PaymentMethod, String]{case PayPal(x) => x}(PayPal))
+          .replace(newEmail)(user)
+        assertTrue(modified.paymentMethod.asInstanceOf[PayPal].email == newEmail)
+      },
+      test("quicklens: replace email in PayPal payment method") {
+        val newEmail = "newemail@gmail.com"
+        val modified = modify(user)(_.paymentMethod.when[PayPal].email).setTo(newEmail)
+        assertTrue(modified.paymentMethod.asInstanceOf[PayPal].email == newEmail)
       },
       test("increase fee for all flexible rooms") {
         assertTrue(true)

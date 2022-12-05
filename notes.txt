@@ -24,6 +24,7 @@
     * https://dzone.com/articles/focus-on-your-data-structures-with-scala-lenses
     * https://github.com/falvarezb/blog-bytecode/blob/postLenses/src/test/scala/fjab/LensesTest.scala
     * https://circe.github.io/circe/optics.html
+    * https://github.com/softwaremill/quicklens
 
 * lenses can be considered the functional representations of getters and setters
     ```
@@ -441,6 +442,8 @@ trait PLens[S, T, A, B] {
         ```
     * Traversal is more generic than Optional, so it composes with everything that Optional composes. This might help us understand why it makes sense for all optics to have 4 type parameters (for S => T and A =>B mappings) - this way we can always compose them. When used standalone, such mappings aren’t obviously useful when it comes to Lens, Prism and Optional - we can always do optics’ modify and result in mapping in 2 steps, but Traversal shows when it becomes much clearer to do it in one step.
 * https://www.optics.dev/Monocle/docs/focus
+    * Focus in scala 2 is much more limited. You can only using to generate lenses for fields inside a case class.
+        * https://github.com/optics-dev/Monocle/issues/1329
 * workshop
     * create by hand then GenLens then focus
     * GenLens[Nested](_.address.street.name) = GenLens[Nested](_.address) composeLens GenLens[Address](_.street) composeLens GenLens[...]
