@@ -249,98 +249,80 @@ The type structure of such function-like things — henceforth transformers — 
 
 ## optics
 * based on Monocle
-    * ISO[S, A]
-        * Iso is an optic which converts elements of type S into elements of type A without loss.
-        * isomorphism between two types
-        * bijection
+    * `ISO[S, A]`
+        * converts elements of type `S` into elements of type `A` without loss
+        * isomorphism between two types (bijection)
         * example
-            ```
-            case class Person(name: String, age: Int)
-            ```
-            Person is equivalent to a tuple (String, Int)
-            tuple (String, Int) is equivalent to Person
-        * common use of Iso is between collection. List and Vector
-        * Iso are also convenient to lift methods from one type to another
-            * example: a String can be seen as a List[Char]
-        * You can think of Iso as something that is simultaneously Lens and Prism. That means that navigating from S and A is always successful (as in Lens) and navigating from A to S does not need any additional information besides of A value (as in Prism) – in other words transformation from S to A is lossless
-        * When is Iso useful? Basically anytime when representing essentially the same data in different ways.
-        * One of classic examples is working with physical units
-            ```
-            case class Meter(whole: Int, fraction: Int)
-            case class Centimeter(whole: Int)
+            * case class <-> tupleN
+                ```
+                case class Person(name: String, age: Int)
+                ```
+                * is equivalent to a tuple `(String, Int)`
+                * tuple `(String, Int)` is equivalent to `Person`
+            * collections: List <-> Vector
+        * convenient to lift methods from one type to another
+            * example: a `String` can be seen as a `List[Char]`
+        * you can think of Iso as something that is simultaneously Lens and Prism
+            * Lens: navigating from `S` to `A` is always successful
+            * Prism: navigating from `A` to `S` does not need any additional information besides of A value
+            * in other words: transformation from S to A is lossless
+        * when is useful?
+            * anytime when representing essentially the same data in different ways
+            * example: physical units
+                ```
+                case class Meter(whole: Int, fraction: Int)
+                case class Centimeter(whole: Int)
 
+                val centimeterToMeterIso = Iso[Centimeter, Meter] { cm =>
+                  Meter(cm.whole / 100, cm.whole % 100)
+                }{ m =>
+                  Centimeter(m.whole * 100 + m.fraction)
+                }
 
-            val centimeterToMeterIso = Iso[Centimeter, Meter] { cm =>
-              Meter(cm.whole / 100, cm.whole % 100)
-            }{ m =>
-              Centimeter(m.whole * 100 + m.fraction)
-            }
-
-            centimeterToMeterIso.modify(m => m.copy(m.whole + 3))(Centimeter(155))
-            ```
-    * Prism[S, A]
-        * sum type
-        * not 1-1 correspondence
-            * String - Int (not all strings are transformable to Int), all Int transformable to String
-            * String <- Int
-            * String -> Option[Int]
+                centimeterToMeterIso.modify(m => m.copy(m.whole + 3))(Centimeter(155))
+                ```
+    * `Prism[S, A]`
+        * used for
+            * sum type (coproduct)
+                * example: sealed trait or Enum
+            * when there is no 1-1 correspondence
+                * example
+                    * String - Int
+                        * not all strings are transformable to Int, all Int transformable to String
+                            * `String` <- `Int`
+                            * `String` -> `Option[Int]`
+                        * digression
+                            * notice that `"0003".toInt == 3` but it is not reversible
+                                * you have to put more constraint on String to have that example represents Prism
         * laws
             * if there is an answer, going back must give the source
             * if we go back, there must be an answer, which is the source
-            * example
-                ```
-                def stringToInt: Prism[String, Int] = Prism(
-                    getOption = s => Try(s.toInt).toOption
-                    reverseGet = _.toString
-                )
-                ```
-                why it breaks laws? try "03"
-                    * In that case it’s pretty easy to see what’s wrong – stringToIntPrism does not preserve some values during round trip
-                    stringToIntPrism.modify(identity)("005")
-                    // res: String = 5
-        * double binding
-            * Prism[String, Celsius]
-            * Prism[String, Fahrenheit]
-            * Iso[Celsius, Fahrenheit]
-        * partial function
-        * def isoToPrism[S,A](iso: Iso[S,A]): Prism[S,A] =
-            Prism(
-                getOption = s => Some(iso.get(s))
-                reverseGet = iso.reverseGet
-            )
-        * for coproduct
-        * used to select part of a Sum type (also known as Coproduct), e.g. sealed trait or Enum
         * vs lens
-            * you can always come back
             * sometimes fails to get target (Option) but you can always come back
-        * laws
-            * a Prism must verify that getOption and reverseGet allow a full round trip if the Prism matches i.e. if getOption returns a Some
-    * Optional[S, A]
-        * You may think of Optional as something more general than both Prism and Lens
-            * Similarly to Prism the element A we are trying to focus may not exist. At the same time focusing is also lossy – after focus we don’t have enough information to go back to S without additional argument
-        * There is a generalization of Prism in case the object of type A may not exist, it’s called Optional.
-        * Unlike Prism when using set on Optional we lose information: we don’t have enough information to go back to S without additional argument.
-        * focuses on a field that may not exist
-        * has worst part of lens and prism
-            * fail to retrieve and fail to get back
-        * is an Optic used to zoom inside a Product, e.g. case class, Tuple, HList or even Map
-        * vs lens
-            * Unlike the Lens, the element that the Optional focuses on may not exist
-        * laws
-            * getOptionSet states that if you getOrModify a value A from S and then set it back in, the result is an object identical to the original one.
-            * setGetOption states that if you set a value, you always getOption the same value back.
+    * `Optional[S, A]`
+        * you may think of `Optional` as something more general than both `Prism` and `Lens`
+            * `Prism`: the element A we are trying to focus may not exist
+            * `Lens`: we don’t have enough information to go back to `S` without additional argument
+            * summary: worst part of lens and prism - can fail to retrieve and can fail to get back
         * example
-            ```
-            sealed trait Error
+            * setup
+                ```
+                sealed trait Error
 
-            case class ErrorA(message: String, details: DetailedErrorA) extends Error
-            case object ErrorB extends Error
-
-            case class DetailedErrorA(detailedMessage: String)
-            ```
-            * Let’s consider Optional[Error, String], which would allow us to “zoom into” detailedMessage. It cannot be Lens[Error, String] as ErrorB does not contain detailMessage.
-        * It’s quite rare to see Optional implemented directly like above. Instead, usually you implement separate Prism and Lens and then compose them together
-    * Traversal[S, A]
+                case class ErrorA(message: String, details: String) extends Error
+                case object ErrorB extends Error
+                ```
+            * task: `Optional[Error, String]` to "zoom into" details
+                * cannot be `Lens[Error, String]` as `ErrorB` does not contain details
+            * solution
+                ```
+                val getErrorADetails: Lens[ErrorA, String] = GenLens[ErrorA](_.details)
+                val getErrorA: Prism[Error, ErrorA] = GenPrism[Error, ErrorA]
+                val getDetails: Optional[Error, String] = getErrorA andThen getErrorADetails
+                ```
+        * it’s quite rare to see `Optional` implemented directly
+            * usually: implement Prism and Lens and then compose them together
+    * `Traversal[S, A]`
         * like optional that can focus on 0 to n fields
         * generalisation of an Optional to several targets
         * most common example of a Traversal would be to focus into all elements inside of a container (e.g. List, Vector, Option)
