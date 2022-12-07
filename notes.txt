@@ -1,3 +1,5 @@
+# scala-optics-monocle-quicklens-workshop
+
 * references
     * https://github.com/optics-dev/Monocle
     * https://www.optics.dev/Monocle/
@@ -26,6 +28,72 @@
     * https://circe.github.io/circe/optics.html
     * https://github.com/softwaremill/quicklens
 
+## preface
+* goals of this workshops
+    * introduction to theoretical basis of optics
+    * practice monocle and quicklens libraries
+* workshop plan
+    * provide implementation of `lib.Lens` and then use it in `VanillaOpticsSpec`
+        * hint: use `lib.Getter` and `lib.Setter`
+    * implement tests in `OpticsSpec` according to its names
+
+## introduction
+* problem: updating nested immutable objects
+    * example
+        ```
+        sealed trait PaymentMethod
+        object {
+            case class PayPal(emai: String) extends PaymentMethod
+            case class DebitCard(
+                cardNumber: String,
+                expirationDate: YearMonth,
+                securityCode: Int
+            ) extends PaymentMethod
+        }
+
+        case class User(name: String, address: Address, paymentMethod: PaymentMethod)
+        case class Address(streetNumber: Int, postCode: String)
+
+        val michal = User("michal", Address(12, "E16 4SR"), PaymentMethod.PayPal("a@gmail.com"))
+        ```
+    * updates of mutable objects (assume that above we have fields defined as `var`s)
+        ```
+        michal.address.streetNumber = 16
+        ```
+    * updated of immutable objects
+        * using copy
+            ```
+            michal.copy(address = michal.address.copy(streetNumber = 16)
+            ```
+        * but how we will update enum?
+            ```
+            def updateExpiry(user: User, newExpiry: YearMonth): User =
+                user.copy(paymentMethod =
+                    user.paymentMethod match {
+                        case card: DebitCard => card.copy(expirationDate = newExpiry)
+                        case paypal: PayPal => paypal
+                    }
+            ```
+        * or suppose we have `paymentMethods: Map[String, PaymentMethod]` instead of single `paymentMethod: PaymentMethod`
+            ```
+            val michal = User(
+                "michal",
+                Address(12, "E16 4SR"),
+                Map(
+                    "Personal" -> PayPal("mtu@gmail.com"),
+                    "Business" -> DebitCard("", YearMonth.of(2022, 7), 995)
+                )
+            )
+
+            def updateExpiry(user: User, paymentName: String, newExpiry: YearMonth): User =
+                user.copy(paymentMethod =
+                    user.paymentMethods.get(paymentName) match {
+                        case None | Some(_: PayPal) => user.paymentMethods
+                        case Some(card: DebitCard) =>
+                            val updatedCard = card.copy(expirationDate = newExpiry)
+                            user.paymentMethods.updated(paymentName, updatedCard)
+                    }
+            ```
 * lenses can be considered the functional representations of getters and setters
     ```
     case class Lens[A, B](get: A => B, set: (B, A) => A)
@@ -250,59 +318,7 @@
         * This diagram is meant to be read as UML class hierarchy diagram, so e.g. arrow going from Lens to Optional means that Lens is a special case of Optional.
         * And what does it mean that both Lens and Prism can be treated as Optional? Lens is an Optional for which getOption always succeeds
         * Prism is an Optional for which we ignores S (“the whole part”) – A (“the specific part”) holds all information to produce new S.
-* mutable
-    ```
-    case class User(var name: String, var address: Address, paymentMethod: PaymentMethod)
-    case class Address(var streetNumber: Int, var postCode: String)
 
-    val michal = User("michal", Address(12, "E16 4SR"))
-
-    michal.address.streetNumber = 16
-    ```
-* immutable
-    ```
-    michal.copy(address = michal.address.copy(streetNumber = 16)
-
-    // how do we modify an enum?
-    def updateExpiry(user: User, newExpiry: YearMonth): User =
-        user.copy(paymentMethod =
-            user.paymentMethod match {
-                case card: DebitCard => card.copy(expirationDate = newExpiry)
-                case paypal: PayPal => paypal
-            }
-    ```
-* change to map
-    ```
-    case class User(var name: String, var address: Address, paymentMethods: Map[String, PaymentMethod])
-
-    val michal = User(
-        "michal",
-        Address(12, "E16 4SR"),
-        Map(
-            "Personal" -> PayPal("mtu@gmail.com"),
-            "Business" -> DebitCard("", YearMonth.of(2022, 7), 995)
-        )
-    )
-
-    def updateExpiry(user: User, paymentName: String, newExpiry: YearMonth): User =
-        user.copy(paymentMethod =
-            user.paymentMethods.get(paymentName) match {
-                case None | Some(_: PayPal) => user.paymentMethods
-                case Some(card: DebitCard) =>
-                    val updatedCard = card.copy(expirationDate = newExpiry)
-                    user.paymentMethods.updated(paymentName, updatedCard)
-            }
-    ```
-* example
-    ```
-    sealed trait PaymentMethod
-    case class PayPal(emai: String) extends PaymentMethod
-    case class DebitCard(
-        cardNumber: String,
-        expirationDate: YearMonth,
-        securityCode: Int
-    ) extends PaymentMethod
-    ```
 * optic
     ```
     trait Optic[From, To] {
