@@ -22,12 +22,12 @@ object OpticsSpec extends ZIOSpecDefault {
         val composed = setAddress andThen setStreetNumber
         val newStreetNo = 10
         val expectedResult = User("MT", Address(newStreetNo, "1012"), PaymentMethod.PayPal("m@gmail.com"))
-        assertTrue(composed.replace(10)(user) == expectedResult)
+        assertTrue(composed.replace(newStreetNo)(user) == expectedResult)
       },
       test("monocle: user - set street number to 10; use: focus") {
         val newStreetNo = 10
         val expectedResult = User("MT", Address(newStreetNo, "1012"), PaymentMethod.PayPal("m@gmail.com"))
-        assertTrue(user.focus(_.address.streetNumber).replace(10) == expectedResult)
+        assertTrue(user.focus(_.address.streetNumber).replace(newStreetNo) == expectedResult)
       },
       test("monocle: university - increase each budget by 100; use: focus") {
         val modified = university
