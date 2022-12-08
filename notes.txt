@@ -324,57 +324,49 @@ The type structure of such function-like things — henceforth transformers — 
             * usually: implement Prism and Lens and then compose them together
     * `Traversal[S, A]`
         * like optional that can focus on 0 to n fields
-        * generalisation of an Optional to several targets
-        * most common example of a Traversal would be to focus into all elements inside of a container (e.g. List, Vector, Option)
-        * example: dog list, name to uppercase
-        * laws
-            * fusion law
-    * At[S, I, A]
+        * generalisation of an `Optional` to several targets
+        * example: focus into all elements inside of a container (e.g. List, Vector, Option)
+    * `At[S, I, A]`
         * an "index" I, provides a Lens[S, A]
         * built-in instances for map and set
         * Lens
-    * Index[S, I, A]
-        * like At
+    * `Index[S, I, A]`
+        * like `At`
         * works on an optional index
         * built-in: list, map, string etc
         * Prism
         * can't delete the value under the key
-    * Lens is not polymorphic
-        * first.set("Hello")((1,2)) == ("Hello",2)
-        * example
-            ```
-            trait PLens[S, T, A, B]
-                def get(s: S): A
-                def set(b: B)(s: S): T
-            ```
-        * example
-            ```
-            import monocle.macros.syntax.lens._
+* hierarchy (based on monocle)
+    * diagram meant to be read as UML class hierarchy diagram
+        * arrow going from `Lens` to `Optional` means that `Lens` is a special case of `Optional`
+        * what does it mean that both `Lens` and `Prism` can be treated as `Optional`?
+            * `Lens` is an `Optional` for which `getOption` always succeeds
+            * `Prism` is an `Optional` for which we ignores `S` ("the whole part")
+                * `A` ("the specific part") holds all information to produce new `S`
+    * diagrams
+    ![alt text](img/optics_short_hierarchy.png)
+    ![alt text](img/optics_full_hierarchy.png)
+    ![alt text](img/composing.png)
 
-            john.lens(_.name).set("Mike").lens(_.age).modify(_ + 1)
-            ```
-        * for product
-        * is an optic used to zoom inside a Product, e.g. case class, Tuple, HList or even Map
-        * In particular, a Lens must respect the getSet law which states that if you get a value A from S and set it back in, the result is an object identical to the original one
-        * vs iso
-            * when you are at field it is not enough to back to source
-        * vs prism
-            * always get something but you cannot get back
-    * hierarchy
-        ![alt text](img/optics_short_hierarchy.png)
-        ![alt text](img/optics_full_hierarchy.png)
-        ![alt text](img/composing.png)
-        * This diagram is meant to be read as UML class hierarchy diagram, so e.g. arrow going from Lens to Optional means that Lens is a special case of Optional.
-        * And what does it mean that both Lens and Prism can be treated as Optional? Lens is an Optional for which getOption always succeeds
-        * Prism is an Optional for which we ignores S (“the whole part”) – A (“the specific part”) holds all information to produce new S.
-
-* https://www.optics.dev/Monocle/docs/focus
-    * Focus in scala 2 is much more limited. You can only using to generate lenses for fields inside a case class.
-        * https://github.com/optics-dev/Monocle/issues/1329
-* workshop
-    * create by hand then GenLens then focus
-    * GenLens[Nested](_.address.street.name) = GenLens[Nested](_.address) composeLens GenLens[Address](_.street) composeLens GenLens[...]
+## monocle
+* composing
+    ```
+    ```
+* focus
+    * https://www.optics.dev/Monocle/docs/focus
+        * Focus in scala 2 is much more limited. You can only using to generate lenses for fields inside a case class.
+            * https://github.com/optics-dev/Monocle/issues/1329
     * example
-        * https://github.com/falvarezb/blog-bytecode/blob/postLenses/src/test/scala/fjab/LensesTest.scala
-    * everything implemented
-        * https://kubuszok.com/2018/adt-through-the-looking-glass/
+        ```
+        ```
+
+## quicklens
+```
+person
+  .modify(_.address.street.name).using(_.toUpperCase)
+  .modify(_.age).setTo(22)
+  .modify(_.weight).setToIfDefined(Some(100))
+  .modify(_.payments.each.result).using(_.toUpperCase)
+  .modify(_.props.at("Height").value).setTo(178)
+  .modify(_.pets.each.when[Dog].age).using(_ + 1)
+```
