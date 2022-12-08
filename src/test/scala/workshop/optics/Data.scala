@@ -1,14 +1,8 @@
 package workshop.optics
-import monocle.{Prism, _}
-import monocle.macros.{GenLens, GenPrism}
-import monocle.syntax.all._
+
 import shared.hotel._
 import shared.university._
-import shared.user.PaymentMethod.PayPal
 import shared.user.{Address, PaymentMethod, User}
-import zio.Scope
-import zio.test.{Spec, TestEnvironment, ZIOSpecDefault, assertTrue}
-import com.softwaremill.quicklens._
 
 object Data {
 
