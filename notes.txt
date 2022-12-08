@@ -351,6 +351,11 @@ The type structure of such function-like things — henceforth transformers — 
 ## monocle
 * composing
     ```
+    val setStreetNumber = GenLens[Address](_.streetNumber)
+    val setAddress = GenLens[User](_.address)
+    val composed = setAddress andThen setStreetNumber
+
+    composed.replace(newStreetNo)(user)
     ```
 * focus
     * https://www.optics.dev/Monocle/docs/focus
@@ -358,6 +363,8 @@ The type structure of such function-like things — henceforth transformers — 
             * https://github.com/optics-dev/Monocle/issues/1329
     * example
         ```
+        person
+          .focus(_.address.street.name).modify(_.toUpperCase)
         ```
 
 ## quicklens
