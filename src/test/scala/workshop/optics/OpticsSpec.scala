@@ -1,7 +1,7 @@
 package workshop.optics
 
-import monocle._
-import monocle.macros.GenLens
+import monocle.{Prism, _}
+import monocle.macros.{GenLens, GenPrism}
 import monocle.syntax.all._
 import shared.hotel._
 import shared.university._
@@ -9,27 +9,10 @@ import shared.user.PaymentMethod.PayPal
 import shared.user.{Address, PaymentMethod, User}
 import zio.Scope
 import zio.test.{Spec, TestEnvironment, ZIOSpecDefault, assertTrue}
+import Data._
 import com.softwaremill.quicklens._
 
 object OpticsSpec extends ZIOSpecDefault {
-
-  val user = User("MT", Address(1, "1012"), PaymentMethod.PayPal("m@gmail.com"))
-  val university = University("oxford", Map(
-    "Computer Science" -> Department(45, List(
-      Lecturer("john", "doe", 10),
-      Lecturer("robert", "johnson", 16)
-    )),
-    "History" -> Department(30, List(
-      Lecturer("arnold", "stones", 20)
-    ))
-  ))
-  val rooms = List(
-    Room("Double", Some("Half Board"), Price(10, "USD"), NonRefundable(1)),
-    Room("Twin", None, Price(20, "USD"), Flexible(0)),
-    Room("Executive", None, Price(200, "USD"), Flexible(0))
-  )
-  val facilities = Map("business" -> List("conference room"))
-  val hotel = Hotel("Hotel Paradise", "100 High Street", 5, rooms, facilities)
 
   override def spec: Spec[TestEnvironment with Scope, Any] =
     suite("OpticsSpec")(
@@ -77,7 +60,7 @@ object OpticsSpec extends ZIOSpecDefault {
       test("monocle: user - replace email in PayPal payment method; use: GenLens") {
         val newEmail = "newemail@gmail.com"
         val modified = GenLens[User](_.paymentMethod)
-          .andThen(Prism.partial[PaymentMethod, String]{case PayPal(x) => x}(PayPal))
+          .andThen(Prism.partial[PaymentMethod, String] { case PayPal(x) => x }(PayPal))
           .replace(newEmail)(user)
         assertTrue(modified.paymentMethod.asInstanceOf[PayPal].email == newEmail)
       },
@@ -105,6 +88,21 @@ object OpticsSpec extends ZIOSpecDefault {
         assertTrue(updatedHotel.rooms.head.roomTariff == hotel.rooms.head.roomTariff)
         assertTrue(updatedHotel.rooms(1).roomTariff == Flexible(newFee))
         assertTrue(updatedHotel.rooms(2).roomTariff == Flexible(newFee))
+      },
+      test("monocle: modify details to details2") {
+        val expectedDetails = "details2"
+        val errorADetailsLens: Lens[ErrorA, String] = GenLens[ErrorA](_.details)
+        val errorAPrism: Prism[Error, ErrorA] = GenPrism[Error, ErrorA]
+        val detailsOptional = (errorAPrism andThen errorADetailsLens).modify(_ + "2")
+
+        assertTrue(detailsOptional(ErrorA("message", "details")).asInstanceOf[ErrorA].details == expectedDetails)
+        assertTrue(detailsOptional(ErrorB) == ErrorB)
+      },
+      test("quicklens: modify details to details2") {
+        val expectedDetails = "details2"
+        val setDetails = modify(_: Error)(_.when[ErrorA].details).using(_ + "2")
+        assertTrue(setDetails(ErrorA("message", "details")).asInstanceOf[ErrorA].details == expectedDetails)
+        assertTrue(setDetails(ErrorB) == ErrorB)
       }
     )
 }
