@@ -169,13 +169,15 @@
         }
         ```
 ## lens
->> A lens is a first-class reference to a subpart of some data type
->> School of Haskell
+> A lens is a first-class reference to a subpart of some data type
+> 
+> School of Haskell
 
->> any data accessor for a component of a data structure is ‘function-like’, in the sense that reading ‘consumes’
+> any data accessor for a component of a data structure is ‘function-like’, in the sense that reading ‘consumes’
 the component from the data structure and writing ‘produces’ an updated component to put back into the data structure.
 The type structure of such function-like things — henceforth transformers — is technically known as a profunctor.
->> Profunctor Optics Modular Data Accessors
+>
+> Profunctor Optics Modular Data Accessors
 
 * problem: how to implement Lens for a sum type?
     * with current implementation: impossible
